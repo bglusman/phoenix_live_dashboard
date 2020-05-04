@@ -10,25 +10,8 @@ defmodule Phoenix.LiveDashboard.ChartComponent do
   def update(assigns, socket) do
     {metric, assigns} = Map.pop(assigns, :metric)
 
-    data =
-      if !assigns[:data] do
-        metric_name = metric.name
 
-        :telemetry.execute(
-          [:phoenix, :live_dashboard],
-          %{metric: metric_name, socket: socket},
-          %{}
-        )
 
-        receive do
-          {:metric_history, ^metric_name, data} ->
-            data
-        after
-          5 -> []
-        end
-      else
-        assigns[:data] || []
-      end
 
     socket =
       if metric do
@@ -38,8 +21,7 @@ defmodule Phoenix.LiveDashboard.ChartComponent do
           kind: chart_kind(metric.__struct__),
           label: chart_label(metric),
           tags: Enum.join(metric.tags, "-"),
-          unit: chart_unit(metric.unit),
-          data: data
+          unit: chart_unit(metric.unit)
         )
       else
         socket

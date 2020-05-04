@@ -61,7 +61,7 @@ defmodule Phoenix.LiveDashboard.MetricsLive do
     <%= if @metrics do %>
       <div class="phx-dashboard-metrics-grid row">
       <%= for {metric, id} <- @metrics do %>
-        <%= live_component @socket, ChartComponent, id: id, metric: metric %>
+        <%= live_component @socket, ChartComponent, id: id, metric: metric, data: optional_history_for_metric(metric, @socket) %>
       <% end %>
       </div>
     <% end %>
@@ -81,5 +81,23 @@ defmodule Phoenix.LiveDashboard.MetricsLive do
   def handle_info({:node_redirect, node}, socket) do
     args = if group = socket.assigns.group, do: [group], else: []
     {:noreply, push_redirect(socket, to: live_dashboard_path(socket, :metrics, node, args))}
+  end
+
+  defp optional_history_for_metric(metric, socket) do
+    metric_name = metric.name
+
+    :telemetry.execute(
+      [:phoenix, :live_dashboard],
+      %{metric: metric_name, socket: socket},
+      %{}
+    )
+
+    receive do
+      {:metric_history, ^metric_name, data} ->
+        IO.inspect(data, label: :receive_history)
+        data
+    after
+      5 -> []
+    end
   end
 end
