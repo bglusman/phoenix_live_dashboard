@@ -92,7 +92,7 @@ defmodule Phoenix.LiveDashboard.MetricsLive do
   defp history_for(metric, historical_data) do
     case history_tuple(metric, historical_data) do
       nil -> []
-      {_prefix, {module, function, opts}} -> apply(module, function, [metric.name | opts])
+      {_prefix, {module, function, opts}} -> apply(module, function, [metric | opts])
     end
   end
 
