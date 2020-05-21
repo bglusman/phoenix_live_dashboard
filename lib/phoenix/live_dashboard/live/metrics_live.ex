@@ -2,6 +2,7 @@ defmodule Phoenix.LiveDashboard.MetricsLive do
   use Phoenix.LiveDashboard.Web, :live_view
 
   alias Phoenix.LiveDashboard.ChartComponent
+  alias Phoenix.LiveDashboard.TelemetryListener
 
   @impl true
   def mount(params, %{"metrics" => {mod, fun}, "historical_data" => data} = session, socket) do
@@ -65,7 +66,7 @@ defmodule Phoenix.LiveDashboard.MetricsLive do
       <div class="phx-dashboard-metrics-grid row">
       <%= for {metric, id} <- @metrics do %>
         <%= live_component @socket, ChartComponent, id: id, metric: metric,
-          do: send_update(ChartComponent, id: id, data: history_for(metric, @historical_data)) %>
+          do: send_update(ChartComponent, id: id, data: history_for(metric, id, @historical_data)) %>
       <% end %>
       </div>
     <% end %>
@@ -87,12 +88,21 @@ defmodule Phoenix.LiveDashboard.MetricsLive do
     {:noreply, push_redirect(socket, to: live_dashboard_path(socket, :metrics, node, args))}
   end
 
-  defp history_for(_metric, nil), do: []
+  defp history_for(_metric, _id, nil), do: []
 
-  defp history_for(metric, historical_data) do
+  defp history_for(metric, id, historical_data) do
     case history_tuple(metric, historical_data) do
-      nil -> []
-      {_prefix, {module, function, opts}} -> apply(module, function, [metric | opts])
+      nil ->
+        []
+
+      {_prefix, {module, function, opts}} ->
+        history = apply(module, function, [metric | opts])
+
+        for %{data: data, time: time} = map <- history do
+          measurement = TelemetryListener.extract_measurement(metric, data)
+          label = TelemetryListener.tags_to_label(metric, map[:metadata] || %{})
+          {id, label, measurement, time}
+        end
     end
   end
 
