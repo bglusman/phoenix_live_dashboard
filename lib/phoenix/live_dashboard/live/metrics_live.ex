@@ -66,20 +66,26 @@ defmodule Phoenix.LiveDashboard.MetricsLive do
       <div class="phx-dashboard-metrics-grid row">
       <%= for {metric, id} <- @metrics do %>
         <%= live_component @socket, ChartComponent, id: id, metric: metric,
-          do: send_update(ChartComponent, id: id, data: history_for(metric, id, @historical_data)) %>
+          do: metric
+              |> history_for(id, @historical_data)
+              |> send_updates_for_entries()
+        %>
       <% end %>
       </div>
     <% end %>
     """
   end
 
-  @impl true
-  def handle_info({:telemetry, entries}, socket) do
+  defp send_updates_for_entries(entries) do
     for {id, label, measurement, time} <- entries do
       data = [{label, measurement, time}]
       send_update(ChartComponent, id: id, data: data)
     end
+  end
 
+  @impl true
+  def handle_info({:telemetry, entries}, socket) do
+    send_updates_for_entries(entries)
     {:noreply, socket}
   end
 
